@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: nexa-chat
+    env: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install && npm run build:client
+    startCommand: npm start
+    envVars:
+      - key: FIREBASE_SERVICE_ACCOUNT_BASE64
+        sync: false
+      - key: CLIENT_ORIGIN
+        value: "*"
+      - key: NODE_VERSION
+        value: 20.11.0
