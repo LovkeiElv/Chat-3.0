@@ -13,3 +13,5 @@ services:
         value: "*"
       - key: NODE_VERSION
         value: 20.11.0
+      - key: PORT
+        value: "4000"

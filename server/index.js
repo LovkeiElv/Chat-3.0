@@ -4,11 +4,9 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import { Server } from "socket.io";
-import dotenv from "dotenv";
 import { auth, db } from "./firebaseAdmin.js";
 import admin from "firebase-admin";
-
-dotenv.config();
+import fs from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 4000;
@@ -228,13 +226,22 @@ io.on("connection", (socket) => {
 // ---------- serve built client (production) ----------
 
 const clientDist = path.join(__dirname, "..", "client", "dist");
-app.use(express.static(clientDist));
-app.get("*", (req, res, next) => {
-  if (req.path.startsWith("/api")) return next();
-  res.sendFile(path.join(clientDist, "index.html"), (err) => {
-    if (err) next();
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    res.sendFile(path.join(clientDist, "index.html"), (err) => {
+      if (err) next();
+    });
   });
-});
+  console.log(`Serving static files from ${clientDist}`);
+} else {
+  console.warn(`⚠️  Client dist folder not found at ${clientDist}`);
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    res.status(404).json({ error: "Frontend not built yet" });
+  });
+}
 
 server.listen(PORT, () => {
   console.log(`Nexa server running on port ${PORT}`);
