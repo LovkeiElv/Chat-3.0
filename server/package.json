@@ -9,10 +9,12 @@
     "build:client": "cd ../client && npm install && npm run build"
   },
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.2.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "firebase-admin": "^12.1.0",
+    "redis": "^4.6.11",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {

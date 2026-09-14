@@ -1,14 +1,16 @@
 # Nexa — простой мессенджер (клон Telegram)
 
 Минималистичный чат-мессенджер: регистрация/вход, список пользователей, личные чаты
-в реальном времени. Стек: **React + Vite** (клиент), **Node.js + Express + Socket.io**
+в реальном времени. Стек: **React + Vite** (клиент), **Node.js + Express + Socket.io + Redis**
 (сервер), **Firebase** (Auth + Firestore).
 
 ```
 telegram-clone/
 ├── client/     # React-приложение (интерфейс)
-├── server/     # Node.js сервер (API + realtime + Firebase Admin)
-└── render.yaml # описание сервиса для Render
+├── server/     # Node.js сервер (API + realtime + Firebase Admin + Redis)
+├── render.yaml # конфиг для Render (включает Redis)
+├── REDIS.md    # документация Redis интеграции
+└── README.md   # этот файл
 ```
 
 ## 1. Создай проект Firebase
@@ -39,6 +41,7 @@ VITE_SERVER_URL=http://localhost:4000
 PORT=4000
 CLIENT_ORIGIN=http://localhost:5173
 FIREBASE_SERVICE_ACCOUNT_BASE64=... # см. ниже
+REDIS_URL=redis://localhost:6379    # см. REDIS.md для деталей
 ```
 
 Чтобы получить `FIREBASE_SERVICE_ACCOUNT_BASE64`, закодируй скачанный JSON-файл
@@ -56,16 +59,21 @@ base64 -i serviceAccountKey.json | tr -d '\n'
 ## 3. Запуск локально
 
 ```bash
-# сервер
+# Redis (в отдельном терминале)
+redis-server              # или docker run -d -p 6379:6379 redis:latest
+
+# сервер (в отдельном терминале)
 cd server
 npm install
-npm run dev        # http://localhost:4000
+npm run dev               # http://localhost:4000
 
-# в другом терминале — клиент
+# клиент (в отдельном терминале)
 cd client
 npm install
-npm run dev         # http://localhost:5173
+npm run dev               # http://localhost:5173
 ```
+
+**Подробнее про Redis:** см. [REDIS.md](REDIS.md)
 
 ## 4. Firestore Security Rules (рекомендуется)
 
@@ -98,30 +106,36 @@ git push -u origin main
 
 ## 6. Деплой на Render
 
-Проект уже содержит `render.yaml` — Render сам предложит настройки при
-подключении репозитория ("Blueprint"). Вручную это выглядит так:
+Проект уже содержит `render.yaml` с конфигурацией для **Web Service + Redis** —
+Render сам создаст оба сервиса при подключении репозитория ("Blueprint").
 
-1. Render → **New → Web Service** → подключи репозиторий.
-2. **Root Directory**: `server`
-3. **Build Command**: `npm install && npm run build:client`
-   (эта команда также соберёт клиент, см. `server/package.json`)
-4. **Start Command**: `npm start`
-5. Добавь переменные окружения: `FIREBASE_SERVICE_ACCOUNT_BASE64`,
-   `CLIENT_ORIGIN` (можно временно поставить `*`), `PORT` — Render подставит сам.
-6. После деплоя сервер отдаёт собранный клиент как статику — отдельный
-   frontend-сервис не нужен, всё работает на одном URL.
+**Что создаёт render.yaml:**
+1. **Web Service** (`nexa-chat`): Node.js приложение
+2. **Redis Service** (`nexa-redis`): Redis инстанс для Socket.io синхронизации
 
-Если хочешь клиент и сервер как два отдельных Render-сервиса (Static Site +
-Web Service) — тоже вариант, просто пропиши `VITE_SERVER_URL` на адрес API-сервиса.
+**Шаги деплоя:**
+1. Render → **Blueprints** → подключи репозиторий
+2. Confirm: `render.yaml` будет прочитан автоматически
+3. Добавь переменные окружения:
+   - `FIREBASE_SERVICE_ACCOUNT_BASE64` (твой base64 ключ)
+   - `CLIENT_ORIGIN` = `*` (или конкретный URL)
+   - `REDIS_URL` — автоматически установится из Redis сервиса
+4. Deploy!
+
+После деплоя:
+- Сервер доступен по одному URL (Web Service)
+- Redis автоматически используется для Socket.io
+- Клиент собирается и отдаётся как статика
 
 ## Что реализовано
 
-- Регистрация / вход по email + паролю (Firebase Auth)
-- Список всех пользователей, поиск по имени
-- Личные чаты 1-на-1 в реальном времени (Socket.io)
-- История сообщений хранится в Firestore
-- Индикатор "в сети" / "был(а) недавно"
-- Адаптивный дизайн (мобильные и десктоп)
+- ✅ Регистрация / вход по email + паролю (Firebase Auth)
+- ✅ Список всех пользователей, поиск по имени
+- ✅ Личные чаты 1-на-1 в реальном времени (Socket.io + Redis)
+- ✅ История сообщений хранится в Firestore
+- ✅ Индикатор "в сети" / "был(а) недавно"
+- ✅ Адаптивный дизайн (мобильные и десктоп)
+- ✅ Redis для синхронизации между инстансами
 
 ## Чего нет (можно добавить следующим этапом)
 

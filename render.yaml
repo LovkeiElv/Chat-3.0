@@ -9,9 +9,19 @@ services:
     envVars:
       - key: FIREBASE_SERVICE_ACCOUNT_BASE64
         sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: nexa-redis
+          property: connectionString
       - key: CLIENT_ORIGIN
         value: "*"
       - key: NODE_VERSION
         value: 20.11.0
       - key: PORT
         value: "4000"
+  - type: redis
+    name: nexa-redis
+    plan: free
+    maxmemoryPolicy: noeviction
+

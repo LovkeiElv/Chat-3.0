@@ -4,9 +4,11 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import { Server } from "socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
 import { auth, db } from "./firebaseAdmin.js";
 import admin from "firebase-admin";
 import fs from "fs";
+import { initRedis, getRedisClient, closeRedis } from "./redisConfig.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 4000;
@@ -243,6 +245,39 @@ if (fs.existsSync(clientDist)) {
   });
 }
 
-server.listen(PORT, () => {
-  console.log(`Nexa server running on port ${PORT}`);
-});
+// ---------- Initialize server with Redis adapter ----------
+
+async function startServer() {
+  try {
+    const redisClient = await initRedis();
+    
+    if (redisClient) {
+      // Setup Redis adapter for Socket.io
+      const pubClient = redisClient.duplicate();
+      const subClient = redisClient.duplicate();
+      
+      io.adapter(createAdapter(pubClient, subClient));
+      console.log("✅ Socket.io Redis adapter configured");
+    } else {
+      console.warn("⚠️  Socket.io running in memory mode without Redis");
+    }
+
+    server.listen(PORT, () => {
+      console.log(`Nexa server running on port ${PORT}`);
+    });
+
+    // Graceful shutdown
+    process.on("SIGTERM", async () => {
+      console.log("SIGTERM signal received: closing HTTP server");
+      server.close(async () => {
+        await closeRedis();
+        process.exit(0);
+      });
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
+}
+
+startServer();
